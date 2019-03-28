@@ -14,7 +14,4 @@
     NSString *_callback;
 }
 
-//@property (nonatomic, retain) NSString * callback;
-
-
 @end

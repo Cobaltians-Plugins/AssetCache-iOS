@@ -9,8 +9,7 @@
 #import "ImageCachePlugin.h"
 
 #define BACKGROUND_URL_SESSION_ID   @"io.kristal.forms.backgroundURLSession"
-
-//@interface ImageCachePlugin() <NSURLSessionDownloadDelegate> {}
+#define TIMEOUT   5*60
 
 @implementation ImageCachePlugin
 
@@ -20,9 +19,14 @@
     _callback = [message objectForKey:kJSCallback];
     NSDictionary *data = [message objectForKey:kJSData];
     NSString *action = [message objectForKey:kJSAction];
-    NSURLSession *_session = [NSURLSession sessionWithConfiguration:[NSURLSessionConfiguration backgroundSessionConfigurationWithIdentifier:BACKGROUND_URL_SESSION_ID]
+    NSURLSessionConfiguration *sessionConfig = [NSURLSessionConfiguration backgroundSessionConfigurationWithIdentifier:BACKGROUND_URL_SESSION_ID];
+    [sessionConfig setTimeoutIntervalForResource:TIMEOUT];  
+    NSURLSession *_session = [NSURLSession sessionWithConfiguration:sessionConfig
+                                                           delegate:self
+                                                      delegateQueue:[NSOperationQueue mainQueue]];
+/*    NSURLSession *_session = [NSURLSession sessionWithConfiguration:[NSURLSessionConfiguration backgroundSessionConfigurationWithIdentifier:BACKGROUND_URL_SESSION_ID]
                                              delegate:self
-                                        delegateQueue:[NSOperationQueue mainQueue]];
+                                        delegateQueue:[NSOperationQueue mainQueue]];*/
     
     if (data != nil && [message isKindOfClass:[NSDictionary class]]) {
         if (action != nil && [action isEqualToString:@"download"]) {
@@ -80,17 +84,14 @@
 #pragma mark Download
     
 ////////////////////////////////////////////////////////////////////////////////////////////////
-    /* Sent when a download task that has completed a download.  The delegate should
-     * copy or move the file at the given location to a new location as it will be
-     * removed when the delegate message returns. URLSession:task:didCompleteWithError: will
-     * still be called.
-     */
+/* Sent when a download task that has completed a download.  The delegate should
+ * copy or move the file at the given location to a new location as it will be
+ * removed when the delegate message returns. URLSession:task:didCompleteWithError: will
+ * still be called.
+ */
     
-    //Called when downloadTask finish
-    - (void)URLSession:(NSURLSession *)session
-downloadTask:(NSURLSessionDownloadTask *)downloadTask
-didFinishDownloadingToURL:(NSURL *)location {
-    
+//Called when downloadTask finish
+- (void)URLSession:(NSURLSession *)session downloadTask:(NSURLSessionDownloadTask *)downloadTask didFinishDownloadingToURL:(NSURL *)location {
     NSString *path = downloadTask.taskDescription;
     NSError *error;
     
@@ -131,29 +132,29 @@ didFinishDownloadingToURL:(NSURL *)location {
     }
 }
     
-    //Called during downloadTask progress
-    - (void)URLSession:(NSURLSession *)session downloadTask:(NSURLSessionDownloadTask *)downloadTask didWriteData:(int64_t)bytesWritten  totalBytesWritten:(int64_t)totalBytesWritten totalBytesExpectedToWrite:(int64_t)totalBytesExpectedToWrite;
-    {
-        NSString *path = downloadTask.taskDescription;
-        NSString *percentage = [NSString stringWithFormat:@"%.f%%", (((float) totalBytesWritten / (float) totalBytesExpectedToWrite) * 100)];
-        [_viewController sendCallback:_callback withData:@{@"path":path, @"status":@"downloading", @"progress":percentage}];
-    }
+//Called during downloadTask progress
+- (void)URLSession:(NSURLSession *)session downloadTask:(NSURLSessionDownloadTask *)downloadTask didWriteData:(int64_t)bytesWritten  totalBytesWritten:(int64_t)totalBytesWritten totalBytesExpectedToWrite:(int64_t)totalBytesExpectedToWrite;
+{
+    NSString *path = downloadTask.taskDescription;
+    NSString *percentage = [NSString stringWithFormat:@"%.f%%", (((float) totalBytesWritten / (float) totalBytesExpectedToWrite) * 100)];
+    [_viewController sendCallback:_callback withData:@{@"path":path, @"status":@"downloading", @"progress":percentage}];
+}
     
-    //Called when downloadTask complete with error
-    - (void)URLSession:(NSURLSession *)session task:(NSURLSessionTask *)downloadTask didCompleteWithError:(NSError *)error;
-    {
-        NSString *path = downloadTask.taskDescription;
-        NSHTTPURLResponse *httpResponse = (NSHTTPURLResponse *) [downloadTask response];
-        NSLog(@"DefaultViewController - DownloadTask complete with server response: %ld",(long)[httpResponse statusCode]);
-        if((long)[httpResponse statusCode] == 404){
-            [_viewController sendCallback:_callback withData:@{@"path":path, @"status":@"error", @"cause":@"fileNotFound"}];
-        } else {
-            if(error!=nil){
-                NSLog(@"DefaultViewController - Error during download! %@",error);
-                [_viewController sendCallback:_callback withData:@{@"path":path, @"status":@"error", @"cause":@"networkError"}];
-            }
+//Called when downloadTask complete with error
+- (void)URLSession:(NSURLSession *)session task:(NSURLSessionTask *)downloadTask didCompleteWithError:(NSError *)error;
+{
+    NSString *path = downloadTask.taskDescription;
+    NSHTTPURLResponse *httpResponse = (NSHTTPURLResponse *) [downloadTask response];
+    NSLog(@"DefaultViewController - DownloadTask ends with server response: %ld",(long)[httpResponse statusCode]);
+    if((long)[httpResponse statusCode] == 404){
+        [_viewController sendCallback:_callback withData:@{@"path":path, @"status":@"error", @"cause":@"fileNotFound"}];
+    } else {
+        if(error!=nil){
+            NSLog(@"DefaultViewController - Error during download! %@",error);
+            [_viewController sendCallback:_callback withData:@{@"path":path, @"status":@"error", @"cause":@"networkError"}];
         }
     }
+}
 
 @end
 
