@@ -1,5 +1,5 @@
 //
-//  ImageCachePlugin.h
+//  AssetCachePlugin.h
 //  Forms
 //
 //  Created by Vincent Rifa on 27/03/2019.
@@ -9,7 +9,7 @@
 #import <Cobalt/CobaltAbstractPlugin.h>
 
 
-@interface ImageCachePlugin : CobaltAbstractPlugin <NSURLSessionDownloadDelegate>{
+@interface AssetCachePlugin : CobaltAbstractPlugin <NSURLSessionDownloadDelegate>{
     CobaltViewController * _viewController;
     NSString *_callback;
 }
