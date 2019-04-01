@@ -1,17 +1,17 @@
 //
-//  ImageCachePlugin.m
+//  AssetCachePlugin.m
 //  Forms
 //
 //  Created by Vincent Rifa on 27/03/2019.
 //  Copyright © 2019 Kristal. All rights reserved.
 //
 
-#import "ImageCachePlugin.h"
+#import "AssetCachePlugin.h"
 
 #define BACKGROUND_URL_SESSION_ID   @"io.kristal.forms.backgroundURLSession"
 #define TIMEOUT   5*60
 
-@implementation ImageCachePlugin
+@implementation AssetCachePlugin
 
 - (void)onMessageFromCobaltController:(CobaltViewController *)viewController andData: (NSDictionary *)message {
     
@@ -157,4 +157,3 @@
 }
 
 @end
-
