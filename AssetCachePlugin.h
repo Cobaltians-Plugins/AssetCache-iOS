@@ -11,7 +11,7 @@
 
 @interface AssetCachePlugin : CobaltAbstractPlugin <NSURLSessionDownloadDelegate>{
     CobaltViewController * _viewController;
-    NSString *_callback;
+    NSURLSession * _session;
 }
 
 @end
