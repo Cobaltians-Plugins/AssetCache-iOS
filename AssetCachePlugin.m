@@ -8,6 +8,7 @@
 
 #import "AssetCachePlugin.h"
 #import "NSString+MD5.h"
+#import <Cobalt/PubSub.h>
 
 #define BACKGROUND_URL_SESSION_ID   @"io.kristal.forms.backgroundURLSession"
 #define TIMEOUT   5*60
@@ -25,14 +26,16 @@
     return self;
 }
 
-- (void)onMessageFromCobaltController:(CobaltViewController *)viewController andData: (NSDictionary *)message {
+- (void)onMessageFromWebView:(WebViewType)webView
+          inCobaltController:(nonnull CobaltViewController *)viewController
+                  withAction:(nonnull NSString *)action
+                        data:(nullable NSDictionary *)data
+          andCallbackChannel:(nullable NSString *)callbackChannel
+{
     
     _viewController = viewController;
-    NSString *callback = [message objectForKey:kJSCallback];
-    NSDictionary *data = [message objectForKey:kJSData];
-    NSString *action = [message objectForKey:kJSAction];
     
-    if (data != nil && [message isKindOfClass:[NSDictionary class]]) {
+    if (data != nil) {
         NSString *assetUrl;
         NSString *assetPath;
         // Retrieving assets information
@@ -54,7 +57,7 @@
             // Task creation and start
             NSURL *url = [NSURL URLWithString:assetUrl];
             NSURLSessionDownloadTask *task = [_session downloadTaskWithURL:url];
-            task.taskDescription = callback;
+            task.taskDescription = callbackChannel;
             [task resume];
         } else if (action != nil && [action isEqualToString:@"delete"]) {
             NSError *error;
@@ -63,15 +66,15 @@
                 [fileManager removeItemAtPath:assetPath error:&error];
                 if(error){
                     NSLog(@"DefaultViewController - Error, Cannot delete file : %@",error);
-                    [_viewController sendCallback:callback withData:@{@"status":@"error", @"cause":@"unknownError"}];
+                    [[PubSub sharedInstance] publishMessage:@{@"status":@"error",@"cause":@"unknownError"} toChannel:callbackChannel];
                 }
                 else {
                     NSLog(@"DefaultViewController - Successfully removed file at %@",assetPath);
-                    [_viewController sendCallback:callback withData:@{@"path":assetPath, @"status":@"success"}];
+                    [[PubSub sharedInstance] publishMessage:@{@"path":assetPath, @"status":@"success"} toChannel:callbackChannel];
                 }
             } else {
                 NSLog(@"DefaultViewController - Error, file doesn't exists at %@",assetPath);
-                [_viewController sendCallback:callback withData:@{@"status":@"error", @"cause":@"fileNotFound"}];
+                [[PubSub sharedInstance] publishMessage:@{@"status":@"error", @"cause":@"fileNotFound"} toChannel:callbackChannel];
             }
         }
     }
@@ -118,11 +121,11 @@
         [fileManager copyItemAtPath:[location path] toPath:path error:&error];
         if(error){
             NSLog(@"DefaultViewController - Error during copy: %@",error);
-            [_viewController sendCallback:callback withData:@{@"status":@"error", @"cause":@"writeError"}];
+            [[PubSub sharedInstance] publishMessage:@{@"status":@"error", @"cause":@"writeError"} toChannel:callback];
         }
         else {
             NSLog(@"DefaultViewController - Download completed at %@",path);
-            [_viewController sendCallback:callback withData:@{@"path":path, @"status":@"success"}];
+            [[PubSub sharedInstance] publishMessage:@{@"path":path, @"status":@"success"} toChannel:callback];
         }
     }
 }
@@ -132,7 +135,8 @@
 {
     NSString *callback = downloadTask.taskDescription;
     NSString *percentage = [NSString stringWithFormat:@"%.f%%", (((float) totalBytesWritten / (float) totalBytesExpectedToWrite) * 100)];
-    [_viewController sendCallback:callback withData:@{@"status":@"downloading", @"progress":percentage}];
+    
+    [[PubSub sharedInstance] publishMessage:@{@"status":@"downloading", @"progress":percentage} toChannel:callback];
 }
     
 //Called when downloadTask complete with error
@@ -142,11 +146,11 @@
     NSHTTPURLResponse *httpResponse = (NSHTTPURLResponse *) [downloadTask response];
     NSLog(@"DefaultViewController - DownloadTask ends with server response: %ld",(long)[httpResponse statusCode]);
     if((long)[httpResponse statusCode] == 404){
-        [_viewController sendCallback:callback withData:@{@"status":@"error", @"cause":@"fileNotFound"}];
+        [[PubSub sharedInstance] publishMessage:@{@"status":@"error", @"cause":@"fileNotFound"} toChannel:callback];
     } else {
         if(error!=nil){
             NSLog(@"DefaultViewController - Error during download! %@",error);
-            [_viewController sendCallback:callback withData:@{@"status":@"error", @"cause":@"networkError"}];
+            [[PubSub sharedInstance] publishMessage:@{@"status":@"error", @"cause":@"networkError"} toChannel:callback];
         }
     }
 }
